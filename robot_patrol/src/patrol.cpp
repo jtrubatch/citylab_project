@@ -1,5 +1,6 @@
 #include "rclcpp/executors/multi_threaded_executor.hpp"
 #include "rclcpp/subscription_options.hpp"
+#include <algorithm>
 #include <ratio>
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
@@ -7,6 +8,7 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <vector>
 #include <chrono>
+#include <iterator>
 
 using std::placeholders::_1;
 using namespace std::chrono_literals;
@@ -26,101 +28,99 @@ public:
 		cmd_pub = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 5);
 	
 		control_timer = this->create_wall_timer(
-											250ms, std::bind(&Patrol::commandPublisher, this), patrol_group);
+											100ms, std::bind(&Patrol::commandPublisher, this), patrol_group);
+		
+		msg_timer = this->create_wall_timer(
+									500ms, std::bind(&Patrol::infoMsg, this), patrol_group);
 	
 		cmd.linear.x = 0.0;
 		cmd.angular.z = 0.0;
+    
   }
-
+	~Patrol()
+	{
+		RCLCPP_INFO(this->get_logger(), "Destructor Called");
+	}
 private:
   void sensorCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)  // 0/720 Rear  180 Right 360 Front 540 Left
 	{
+		
 		this->front = msg->ranges[360];
-		for(int i = 0; i < 135; i++)
-		{
-			left_side[i] = msg->ranges[405+i];
-			right_side[i] = msg->ranges[360+i];
-		}
-		left_max = *std::max_element(left_side.begin(), left_side.end());
-		right_max = *std::max_element(right_side.begin(), right_side.end());
+		this->laser = {msg->ranges[180], msg->ranges[225], msg->ranges[270], msg->ranges[315], msg->ranges[360],
+									 msg->ranges[405], msg->ranges[450], msg->ranges[495], msg->ranges[540]};
+
+		auto min_iterator = std::min_element(laser.begin(), laser.end());
+		this->laser_min_index = std::distance(laser.begin(), min_iterator);
+		this->laser_min = laser[laser_min_index];
 	}
   void commandPublisher()  // positive CCW negative CW
+	{	
+		this->cmd_pub->publish(cmd);
+
+		cmd.linear.x = linearControl(front);
+		cmd.angular.z = angularControl(laser_min, laser_min_index );
+
+		this->cmd_pub->publish(cmd);
+
+	}
+
+	void infoMsg()
 	{
-		if(front <= obstacle_buffer)
+		RCLCPP_INFO(this->get_logger(), "Linear Velocity: %f   Angular Velocity %f", cmd.linear.x, cmd.angular.z);
+		RCLCPP_INFO(this->get_logger(), "Front Laser: %f   Min Index: %d  Min Value: %f", front, laser_min_index, laser_min);
+	}
+
+	float linearControl(float distance) // 0 to 0.75
+	{
+		float clamped_front;
+		if(distance > 0.75)
 		{
-			//Opening on Left
-			if(left_max > right_max)
-			{
-				//Turn Left
-				rotateLeft(left_max);
-			}
-			//Opening on Right or Same both sides
-			else if(right_max >= left_max)
-			{
-				//Turn Right
-				rotateRight(right_max);
-			}
+			clamped_front = 0.75;
+		}
+		else if(distance < min_distance)
+		{
+			clamped_front = min_distance;
 		}
 		else 
 		{
-			RCLCPP_INFO(this->get_logger(), "Moving Forward");
-			cmd.angular.z = 0.0;
-			cmd.linear.x = 0.25;
+			clamped_front = distance;
 		}
-		cmd_pub->publish(cmd);
 
+		return (clamped_front - min_distance) * 0.25;
 	}
 
-	void rotateRight(float max)
+	float angularControl(float range, int index)
 	{
-		bool turn_complete = false;
-		RCLCPP_INFO(this->get_logger(), "ROTATING RIGHT");
-		
-		while(!turn_complete)
+		float vel = 0.0;
+		if(range <= obstacle_buffer)
 		{
-			cmd.angular.z = -0.25;
-			
-			if(front >= (max - max_buffer))
+			if(index < 4 ) // Object on right, turn left
 			{
-				turn_complete = true;
-				cmd.angular.z = 0.0;
-			}	
-			cmd_pub->publish(cmd);	
-		}
-		RCLCPP_INFO(this->get_logger(), "ROTATION COMPLETE");
-	}
+				vel = 0.2;
+			}
+			else if(index >= 4) //Object on left or straight ahead, turn right
+			{
+				vel = -0.2;
+			}
 
-	void rotateLeft(float max)
-	{
-		bool turn_complete = false;
-		RCLCPP_INFO(this->get_logger(), "ROTATING LEFT");
-		
-		while(!turn_complete)
-		{
-			cmd.angular.z = 0.25;
-			
-			if(front >= (max - max_buffer))
-			{
-				turn_complete = true;
-				cmd.angular.z = 0.0;
-			}	
-			cmd_pub->publish(cmd);	
 		}
-		RCLCPP_INFO(this->get_logger(), "ROTATION COMPLETE");	
+		return vel;
 	}
 	rclcpp::CallbackGroup::SharedPtr patrol_group;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_pub;
 	rclcpp::TimerBase::SharedPtr control_timer;
+	rclcpp::TimerBase::SharedPtr msg_timer;
   
 	float front;
-	std::vector<float> left_side;
-	float left_max;
-	std::vector<float> right_side;
-	float right_max;
+	std::vector <float> laser;
+	float laser_min;
+	int laser_min_index;
 	geometry_msgs::msg::Twist cmd;
 	
+	
 	float obstacle_buffer = 0.35;
+	float min_distance = 0.25;
 	float max_buffer = 0.1;
 };
 
