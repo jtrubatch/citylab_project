@@ -21,12 +21,17 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(direction_service_interface REQUIRED)
 
 add_executable(robot_patrol src/patrol.cpp)
 ament_target_dependencies(robot_patrol rclcpp geometry_msgs sensor_msgs)
 
+add_executable(direction_server src/direction_service.cpp)
+ament_target_dependencies(direction_server rclcpp direction_service_interface)
+
 install(TARGETS
    robot_patrol
+   direction_server
    DESTINATION lib/${PROJECT_NAME}
  )
 
