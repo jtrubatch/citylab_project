@@ -1,7 +1,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
-#include "direction_service_interface/srv/detail/get_direction__struct.hpp"
-#include "direction_service_interface/srv/get_direction.hpp"
+#include "direction_service_interface/srv/get_direction_alt.hpp"
 #include "rclcpp/callback_group.hpp"
 #include "rclcpp/executors/multi_threaded_executor.hpp"
 #include "rclcpp/subscription_options.hpp"
@@ -10,10 +9,11 @@
 #include <vector>
 #include <chrono>
 
+
 using namespace std::chrono_literals;
 using std::placeholders::_1;
 
-float laser[19];
+
 
 class TestService : public rclcpp::Node 
 {
@@ -26,23 +26,27 @@ public:
 		opt.callback_group = test_group;
 
 		sub = this->create_subscription<sensor_msgs::msg::LaserScan>("scan", 10, std::bind(&TestService::sensorCallback, this, _1), opt);
-		client = this->create_client<direction_service_interface::srv::GetDirection>("direction_service", rmw_qos_profile_services_default, test_group);
-		client_timer = this->create_wall_timer(500ms, std::bind(&TestService::clientCallback, this), test_group);
+		client = this->create_client<direction_service_interface::srv::GetDirectionAlt>("direction_service", rmw_qos_profile_services_default, test_group);
+		client_timer = this->create_wall_timer(1000ms, std::bind(&TestService::clientCallback, this), test_group);
 	}
 
 private:
 	rclcpp::CallbackGroup::SharedPtr test_group;
 	rclcpp::TimerBase::SharedPtr client_timer;
 	rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr sub;
-	rclcpp::Client<direction_service_interface::srv::GetDirection>::SharedPtr client;
-	
+	rclcpp::Client<direction_service_interface::srv::GetDirectionAlt>::SharedPtr client;
+	float laser[19];
+
 	void clientCallback()
 	{
-		auto req = std::make_shared<direction_service_interface::srv::GetDirection::Request>();
+		auto req = std::make_shared<direction_service_interface::srv::GetDirectionAlt::Request>();
+		
 		for(int i = 0; i < 19; i++)
 		{
-			req->laser_data.ranges[i] = laser[i];
+			req->laser_data[i] = laser[i];
+			RCLCPP_INFO(this->get_logger(), " laser data: %f", req->laser_data[i]);
 		}
+		
 		auto result_future = client->async_send_request(req);
 		std::future_status status = result_future.wait_for(2s);
 		if (status == std::future_status::ready) {
@@ -54,6 +58,7 @@ private:
 	}
 	void sensorCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)
 	{
+
 		laser[0] = msg->ranges[180];
 		laser[1] = msg->ranges[200];
 		laser[2] = msg->ranges[220];
@@ -73,6 +78,7 @@ private:
 		laser[16] = msg->ranges[500];
 		laser[17] = msg->ranges[520];
 		laser[18] = msg->ranges[540];
+
 	}
 
 };
@@ -88,7 +94,8 @@ int main(int argc, char** argv)
 	rclcpp::executors::MultiThreadedExecutor executor;
 	executor.add_node(test_service_node);
 	executor.spin();
-  rclcpp::shutdown();
+  
+	rclcpp::shutdown();
 
   return 0;
 	
