@@ -34,5 +34,6 @@ endif()
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetDirection.srv"
   "srv/GetDirectionAlt.srv"
+  DEPENDENCIES sensor_msgs
 )
 ament_package()

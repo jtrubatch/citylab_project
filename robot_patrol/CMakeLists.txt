@@ -33,10 +33,14 @@ ament_target_dependencies(direction_server rclcpp direction_service_interface)
 add_executable(test_service src/test_service.cpp)
 ament_target_dependencies(test_service rclcpp direction_service_interface sensor_msgs std_srvs)
 
+add_executable(robot_patrol2 src/patrol_v2.cpp)
+ament_target_dependencies(robot_patrol2 rclcpp geometry_msgs sensor_msgs direction_service_interface)
+
 install(TARGETS
    robot_patrol
    direction_server
    test_service
+   robot_patrol2
    DESTINATION lib/${PROJECT_NAME}
  )
 

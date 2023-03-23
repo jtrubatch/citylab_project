@@ -25,10 +25,10 @@ public:
 		cmd_pub = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 5);
 
 		control_timer = this->create_wall_timer(
-											200ms, std::bind(&Patrol::commandPublisher, this), patrol_group);
+											100ms, std::bind(&Patrol::commandPublisher, this), patrol_group);
 		
 		msg_timer = this->create_wall_timer(
-									200ms, std::bind(&Patrol::infoMsg, this), patrol_group);
+									500ms, std::bind(&Patrol::infoMsg, this), patrol_group);
 	
 		cmd.linear.x = 0.0;
 		cmd.angular.z = 0.0;
@@ -40,17 +40,22 @@ public:
 private:
   void sensorCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg)  // 0/720 Rear  180 Right 360 Front 540 Left
 	{
+		rclcpp::Rate rate(10);
 		auto req = std::make_shared<direction_service_interface::srv::GetDirection::Request>();
+		auto res = std::make_shared<direction_service_interface::srv::GetDirection::Response>();
 		req->laser_data.ranges = msg->ranges;
 
 		auto result_future = client->async_send_request(req);
 		std::future_status status = result_future.wait_for(2s);
 		if (status == std::future_status::ready) 
 		{
+    RCLCPP_INFO(this->get_logger(), "Received response");
 		auto result = result_future.get();
     RCLCPP_INFO(this->get_logger(), "Safe Direction is: %s", result->direction.c_str());
 		}
-		direction = result_future.get()->direction;
+		direction = result->direction.c_str();
+		RCLCPP_INFO(this->get_logger(), "Direction: ", direction.c_str());
+		rate.sleep();
 
 	}
 	// Service client callback and command publisher
@@ -58,18 +63,21 @@ private:
 	{	
 		if(direction == "forward")
 		{
-			cmd.linear.x = 0.05;
+			cmd.linear.x = 0.1;
 			cmd.angular.z = 0.0;
+			RCLCPP_INFO(this->get_logger(), "Set to Forward");
 		}
 		else if(direction == "left")		
 		{
-			cmd.linear.x = 0.01;
-			cmd.angular.z = 0.35;
+			cmd.linear.x = 0.025;
+			cmd.angular.z = 0.2;
+			RCLCPP_INFO(this->get_logger(), "Set to Rotate Left");	
 		}
 		else if(direction == "right")		
 		{
-			cmd.linear.x = 0.01;
-			cmd.angular.z = -0.35;
+			cmd.linear.x = 0.025;
+			cmd.angular.z = -0.2;
+			RCLCPP_INFO(this->get_logger(), "Set to Rotate Right");
 		}else
 		{
 			cmd.linear.x = 0.0;
@@ -83,6 +91,7 @@ private:
 	void infoMsg()
 	{
 		RCLCPP_INFO(this->get_logger(), "Linear Velocity: %f   Angular Velocity %f", cmd.linear.x, cmd.angular.z);
+		RCLCPP_INFO(this->get_logger(), "Direction Received: %s", direction.c_str());
 	}
 
 	rclcpp::CallbackGroup::SharedPtr patrol_group;
