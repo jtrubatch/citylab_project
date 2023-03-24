@@ -23,7 +23,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(direction_service_interface REQUIRED)
-find_package(std_srvs REQUIRED)
+
 
 add_executable(robot_patrol src/patrol.cpp)
 ament_target_dependencies(robot_patrol rclcpp geometry_msgs sensor_msgs)
@@ -32,7 +32,7 @@ add_executable(direction_server src/direction_service.cpp)
 ament_target_dependencies(direction_server rclcpp direction_service_interface)
 
 add_executable(test_service src/test_service.cpp)
-ament_target_dependencies(test_service rclcpp direction_service_interface sensor_msgs std_srvs)
+ament_target_dependencies(test_service rclcpp direction_service_interface sensor_msgs)
 
 add_executable(robot_patrol2 src/patrol_v2.cpp)
 ament_target_dependencies(robot_patrol2 rclcpp geometry_msgs sensor_msgs direction_service_interface)

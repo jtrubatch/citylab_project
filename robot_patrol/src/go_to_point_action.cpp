@@ -1,4 +1,3 @@
-#include "direction_service_interface/action/detail/go_to_point__struct.hpp"
 #include "direction_service_interface/action/go_to_point.hpp"
 #include "geometry_msgs/msg/detail/twist__struct.hpp"
 #include "nav_msgs/msg/detail/odometry__struct.hpp"

@@ -1,7 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
-#include "direction_service_interface/srv/detail/get_direction__struct.hpp"
+
 #include "direction_service_interface/srv/get_direction.hpp"
 #include <vector>
 #include <chrono>
