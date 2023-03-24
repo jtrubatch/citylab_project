@@ -97,9 +97,7 @@ private:
 		
     auto feedback = std::make_shared<GoTo::Feedback>();
     auto &message = feedback->current_pos;
-    message.x = current_pose[0];
-		message.y = current_pose[1];
-		message.z = current_pose[2];
+
     auto result = std::make_shared<GoTo::Result>();
 
     rclcpp::Rate loop_rate(10);
@@ -112,8 +110,10 @@ private:
 		float delta_y;
 		float delta_w;
 		int count = 0;
+		float w_target = getTheta(current_pose, x_goal, y_goal);
 		while(rclcpp::ok() && !complete)
 		{
+
 			if(goal_handle->is_canceling())
 			{
 				result->status = false;
@@ -121,10 +121,11 @@ private:
 				RCLCPP_INFO(this->get_logger(), "Goal Canceled");
 				return;
 			}
-			float w_target = getTheta(current_pose, x_goal, y_goal);
+			
 			// Rotate to face goal X Y
-			while(abs(w_target - current_pose[2])> rotation) 
+			if(abs(w_target - current_pose[2])> rotation && !targetW) 
 			{
+				RCLCPP_INFO(this->get_logger(), "Rotating to Goal");
 				if(w_target > 0)
 				{
 					cmd.linear.x = 0.0;
@@ -134,16 +135,21 @@ private:
 				{
 					cmd.linear.x = 0.0;
 					cmd.angular.z = -0.25;
-				}	
-				cmd_pub->publish(cmd);			
-			}
+				}		
+				
+			}else if(abs(w_target - current_pose[2])<= rotation)
+				{
+					targetW = true;
+				}		
+
 			// Move to goal X Y
-			while(!atXY)
+			if(!atXY && targetW)
 			{
+				RCLCPP_INFO(this->get_logger(), "Moving to Goal");
 				cmd.linear.x = 0.075;
 				
 				w_target = getTheta(current_pose, x_goal, y_goal);
-				cmd.angular.z = (w_target - current_pose[2]) * 0.25;
+				cmd.angular.z = (w_target - current_pose[2]) * 0.1;
 				// Truncate delta values at 2 decimal places
 				delta_x = roundf((x_goal - current_pose[0]) * 100) / 100; 
 				delta_y = roundf((y_goal - current_pose[1]) * 100) / 100;
@@ -151,23 +157,23 @@ private:
 				{
 					cmd.linear.x = 0.0;
 					cmd.angular.z = 0.0;
+					cmd_pub->publish(cmd);	
 					atXY = true;
-				}
-				cmd_pub->publish(cmd);
-				
+				}				
 			}
 			// Rotate to Goal W
-			while(!atW)
+			if(!atW && atXY)
 			{
+				RCLCPP_INFO(this->get_logger(), "Rotating to Goal Orientation");
 				if(w_goal > current_pose[2])
 				{
 					cmd.linear.x = 0.0;
-					cmd.angular.z = 0.25;
+					cmd.angular.z = 0.15;
 				}
 				else if(w_goal < current_pose[2])
 				{
 					cmd.linear.x = 0.0;
-					cmd.angular.z = -0.25;
+					cmd.angular.z = -0.15;
 				}	
 				// Truncate delta at 1 decimal place
 				delta_w = abs(roundf((w_goal - current_pose[2])*10) / 10);
@@ -175,17 +181,23 @@ private:
 				{
 					cmd.linear.x = 0.0;
 					cmd.angular.z = 0.0;
+					cmd_pub->publish(cmd);
 					atW = true;
 				}
-				cmd_pub->publish(cmd);	
-				if(atXY && atW)
-				{
-					complete = true;
-				}		
+	
+				
 			}
-			count++;
-			if(count == 10)
+			if(atXY && atW)
 			{
+				complete = true;
+			}		
+			cmd_pub->publish(cmd);	
+			count++;
+			if(count == 10 || complete)
+			{
+				message.x = current_pose[0];
+				message.y = current_pose[1];
+				message.z = current_pose[2];
 				goal_handle->publish_feedback(feedback);
 				count = 0;
 			}	
