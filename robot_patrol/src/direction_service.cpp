@@ -21,8 +21,8 @@ private:
   float front_min = 0.0;
   float right_min = 0.0;
 	float right_max = 0.0;
-	const float min_distance = 0.25;
-	const float side_min = 0.15;
+	const float min_distance = 0.35;
+	const float side_min = 0.2;
 
 
 	void directionCallback(const std::shared_ptr<GetDirection::Request> req,

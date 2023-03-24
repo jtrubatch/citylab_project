@@ -67,7 +67,7 @@ private:
 
   void commandPublisher()  // positive CCW negative CW
 	{	
-    float linear_vel = 0.15;
+    float linear_vel = 0.075;
 
     if(left_min < side_min && front_min > min_distance)
 		{
@@ -131,8 +131,8 @@ private:
   float front_min = 0.0;
   float right_min = 0.0;
 	float right_max = 0.0;
-	const float min_distance = 0.5;
-	const float side_min = 0.25;
+	const float min_distance = 0.35;
+	const float side_min = 0.15;
 };
 
 int main(int argc, char **argv)
