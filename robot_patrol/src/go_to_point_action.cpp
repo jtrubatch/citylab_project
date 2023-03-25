@@ -128,12 +128,12 @@ private:
 				if(w_target > 0)
 				{
 					cmd.linear.x = 0.0;
-					cmd.angular.z = 0.25;
+					cmd.angular.z = 0.15;
 				}
 				else if(w_target < 0)
 				{
 					cmd.linear.x = 0.0;
-					cmd.angular.z = -0.25;
+					cmd.angular.z = -0.15;
 				}		
 				
 			}else if(abs(w_target - current_pose[2])<= rotation)
@@ -148,7 +148,7 @@ private:
 				cmd.linear.x = 0.075;
 				
 				w_target = getTheta(current_pose, x_goal, y_goal);
-				cmd.angular.z = (w_target - current_pose[2]) * 0.1;
+				cmd.angular.z = (w_target - current_pose[2]) * 0.075;
 				// Truncate delta values at 2 decimal places
 				delta_x = roundf((x_goal - current_pose[0]) * 100) / 100; 
 				delta_y = roundf((y_goal - current_pose[1]) * 100) / 100;
